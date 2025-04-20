@@ -74,8 +74,6 @@ internal class Parser(plot: Plot) {
                         mapping.getNA()?.let { naValue ->
                             df = df.fillNA(mapping.columnID).with { naValue }
                         }
-                        println("NA!!!")
-                        println(df)
                     }
                 }
             }
