@@ -31,27 +31,25 @@ internal sealed interface EchartsColor {
     value class Named(val name: String) : EchartsColor
 
     @Serializable(with = RgbColorSerializer::class)
-    class Rgb(val r: Int, val g: Int, val b: Int) : EchartsColor {
+    data class Rgb(val r: Int, val g: Int, val b: Int) : EchartsColor {
         init {
             require(r in 0..255 && g in 0..255 && b in 0..255) {
                 "Invalid RGB values: ($r, $g, $b). Each value should be between 0 and 255 (inclusive)."
             }
         }
 
-        fun toHex(): String {
-            val hexR = r.toString(16).padStart(2, '0')
-            val hexG = g.toString(16).padStart(2, '0')
-            val hexB = b.toString(16).padStart(2, '0')
-            return "#$hexR$hexG$hexB"
+        fun toHex(): String = buildString {
+            append('#')
+            append(r.toString(16).padStart(2, '0'))
+            append(g.toString(16).padStart(2, '0'))
+            append(b.toString(16).padStart(2, '0'))
         }
 
-        override fun toString(): String {
-            return "rgb($r, $g, $b)"
-        }
+        override fun toString(): String = "rgb($r, $g, $b)"
     }
 
     @Serializable(with = RgbaColorSerializer::class)
-    class Rgba(val r: Int, val g: Int, val b: Int, val a: Double) : EchartsColor {
+    data class Rgba(val r: Int, val g: Int, val b: Int, val a: Double) : EchartsColor {
         init {
             require(r in 0..255 && g in 0..255 && b in 0..255) {
                 "Invalid RGB values: ($r, $g, $b). Each value should be between 0 and 255 (inclusive)."
@@ -61,18 +59,16 @@ internal sealed interface EchartsColor {
             }
         }
 
-        fun toHex(): String {
-            val hexR = r.toString(16).padStart(2, '0')
-            val hexG = g.toString(16).padStart(2, '0')
-            val hexB = b.toString(16).padStart(2, '0')
+        fun toHex(): String = buildString {
+            append('#')
+            append(r.toString(16).padStart(2, '0'))
+            append(g.toString(16).padStart(2, '0'))
+            append(b.toString(16).padStart(2, '0'))
             val alpha = (a * 255).toInt()
-            val hexA = alpha.toString(16).padStart(2, '0')
-            return "#$hexR$hexG$hexB$hexA"
+            append(alpha.toString(16).padStart(2, '0'))
         }
 
-        override fun toString(): String {
-            return "rgba($r, $g, $b, $a)"
-        }
+        override fun toString(): String = "rgba($r, $g, $b, $a)"
     }
 
     @Serializable
@@ -84,14 +80,14 @@ internal sealed interface EchartsColor {
 
     @Serializable
     @SerialName("linear")
-    class LinearGradient(
+    data class LinearGradient(
         override val x: Double?, override val y: Double?,
         val x2: Double?, val y2: Double?, override val colorStops: List<ColorStop>?,
     ) : Gradient
 
     @Serializable
     @SerialName("radial")
-    class RadialGradient(
+    data class RadialGradient(
         override val x: Double?, override val y: Double?,
         val r: Double?, override val colorStops: List<ColorStop>?,
     ) : Gradient

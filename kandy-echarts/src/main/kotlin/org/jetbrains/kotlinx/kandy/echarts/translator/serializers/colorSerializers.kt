@@ -18,8 +18,8 @@ internal object ColorSerializer : KSerializer<EchartsColor> {
         val str = this.content
         return when {
             str.startsWith("#") -> EchartsColor.Hex(str)
+            str.startsWith("rgba") -> RgbaColorSerializer.deserialize(decoder)
             str.startsWith("rgb") -> RgbColorSerializer.deserialize(decoder)
-            str.startsWith("rgba") -> RgbColorSerializer.deserialize(decoder)
             else -> EchartsColor.Named(str)
         }
     }
@@ -37,7 +37,7 @@ internal object ColorSerializer : KSerializer<EchartsColor> {
             element<Double>("y2")
             element<List<ColorStop>>("colorStops")
         })
-        element("EchartsColor.RadialGradient", buildClassSerialDescriptor("EchartsColor.LinearGradient") {
+        element("EchartsColor.RadialGradient", buildClassSerialDescriptor("EchartsColor.RadialGradient") {
             element<String>("type")
             element<Double>("x")
             element<Double>("y")
@@ -53,20 +53,30 @@ internal object ColorSerializer : KSerializer<EchartsColor> {
         return when {
             element is JsonPrimitive -> element.toEchartsColor(decoder)
             element is JsonObject && "type" in element -> {
-                val x = element["x"]!!.jsonPrimitive.double
-                val y = element["y"]!!.jsonPrimitive.double
-                val colorStops = element["colorStops"]!!.jsonArray.map {
-                    val offset = it.jsonObject["offset"]!!.jsonPrimitive.double
-                    val color = it.jsonObject["color"]!!.jsonPrimitive.toEchartsColor(decoder)
+                val x = element["x"]?.jsonPrimitive?.double
+                val y = element["y"]?.jsonPrimitive?.double
+
+                val colorStops = element["colorStops"]?.jsonArray?.map {
+                    val offset = it.jsonObject["offset"]?.jsonPrimitive?.double
+                        ?: throw SerializationException("Missing or invalid 'offset' in colorStop")
+                    val color = it.jsonObject["color"]?.jsonPrimitive?.let { primitive ->
+                        primitive.toEchartsColor(decoder)
+                    } ?: throw SerializationException("Missing or invalid 'color' in colorStop")
                     ColorStop(offset, color)
-                }
-                if (element["type"]!!.jsonPrimitive.content == "linear") {
-                    val x2 = element["x2"]!!.jsonPrimitive.double
-                    val y2 = element["y2"]!!.jsonPrimitive.double
+                } ?: emptyList()
+
+                val type = element["type"]?.jsonPrimitive?.content
+                    ?: throw SerializationException("Missing or invalid 'type' in gradient")
+
+                if (type == "linear") {
+                    val x2 = element["x2"]?.jsonPrimitive?.double
+                    val y2 = element["y2"]?.jsonPrimitive?.double
                     EchartsColor.LinearGradient(x, y, x2, y2, colorStops)
-                } else {
-                    val r = element["r"]!!.jsonPrimitive.double
+                } else if (type == "radial") {
+                    val r = element["r"]?.jsonPrimitive?.double
                     EchartsColor.RadialGradient(x, y, r, colorStops)
+                } else {
+                    throw SerializationException("Unknown gradient type: $type")
                 }
             }
 
@@ -105,9 +115,9 @@ internal object RgbaColorSerializer : KSerializer<EchartsColor.Rgba> {
 
     override fun deserialize(decoder: Decoder): EchartsColor.Rgba {
         val rgbaString = decoder.decodeString()
-        val rgba = rgbaString.substringAfter("(").substringBefore(")")
+        val (r, g, b, a) = rgbaString.substringAfter("(").substringBefore(")")
             .split(",").map { it.trim().toDouble() }
-        return EchartsColor.Rgba(rgba[0].toInt(), rgba[1].toInt(), rgba[2].toInt(), rgba[3])
+        return EchartsColor.Rgba(r.toInt(), g.toInt(), b.toInt(), a)
     }
 
     override fun serialize(encoder: Encoder, value: EchartsColor.Rgba) = encoder.encodeString(value.toString())
