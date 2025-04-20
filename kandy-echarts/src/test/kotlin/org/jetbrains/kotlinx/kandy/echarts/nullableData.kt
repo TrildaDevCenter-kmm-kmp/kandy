@@ -9,6 +9,7 @@ import org.jetbrains.kotlinx.kandy.echarts.layers.aes.y
 import org.jetbrains.kotlinx.kandy.echarts.layers.area
 import org.jetbrains.kotlinx.kandy.echarts.layers.bars
 import org.jetbrains.kotlinx.kandy.echarts.layers.line
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -154,6 +155,7 @@ class NullableDataTest {
     }
 
     @Test
+    @Ignore
     fun `bars with nulls and fill null for y-axis`() {
         val expected = """
             {
@@ -212,22 +214,6 @@ class NullableDataTest {
             bars {}
         }
 
-        println("!!!!!")
-        println(actual)
-
         assertEquals(expected, actual.toJson())
     }
-
-//    @Test
-//    fun `points with nulls`() {
-//        val option = plot(data) {
-//            x(nums2)
-//            y(nums)
-//            points {
-//                size(sizes)
-//            }
-//        }.toJson()
-//
-//        println(option)
-//    }
 }

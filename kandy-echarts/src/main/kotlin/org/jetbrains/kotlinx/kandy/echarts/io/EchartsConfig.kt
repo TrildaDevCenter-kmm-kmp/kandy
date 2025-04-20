@@ -20,5 +20,6 @@ internal object EchartsConfig {
         encodeDefaults = true
         prettyPrint = true
         isLenient = true
+        allowSpecialFloatingPointValues = true
     }
 }

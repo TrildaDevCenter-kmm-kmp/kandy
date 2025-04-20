@@ -1,27 +1,26 @@
 package org.jetbrains.kotlinx.kandy.echarts.translator
 
 import kotlinx.datetime.*
-import org.jetbrains.kotlinx.dataframe.api.fillNA
-import org.jetbrains.kotlinx.dataframe.api.map
-import org.jetbrains.kotlinx.dataframe.api.with
+import org.jetbrains.kotlinx.dataframe.AnyCol
+import org.jetbrains.kotlinx.dataframe.DataFrame
+import org.jetbrains.kotlinx.dataframe.api.*
+import org.jetbrains.kotlinx.kandy.dsl.internal.dataframe.GroupedData
 import org.jetbrains.kotlinx.kandy.dsl.internal.dataframe.NamedData
-import org.jetbrains.kotlinx.kandy.echarts.layers.*
 import org.jetbrains.kotlinx.kandy.echarts.layers.aes.NAME
 import org.jetbrains.kotlinx.kandy.echarts.layers.aes.X
 import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y
+import org.jetbrains.kotlinx.kandy.echarts.layers.*
 import org.jetbrains.kotlinx.kandy.echarts.scale.EchartsPositionalMappingParameters
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.*
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.*
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.settings.Encode
+import org.jetbrains.kotlinx.kandy.echarts.translator.option.util.Element
 import org.jetbrains.kotlinx.kandy.ir.Layer
 import org.jetbrains.kotlinx.kandy.ir.Plot
 import org.jetbrains.kotlinx.kandy.ir.aes.Aes
 import org.jetbrains.kotlinx.kandy.ir.bindings.*
 import org.jetbrains.kotlinx.kandy.ir.data.TableData
-import org.jetbrains.kotlinx.kandy.ir.scale.NonPositionalContinuousScale
-import org.jetbrains.kotlinx.kandy.ir.scale.PositionalCategoricalScale
-import org.jetbrains.kotlinx.kandy.ir.scale.PositionalContinuousScale
-import org.jetbrains.kotlinx.kandy.ir.scale.PositionalDefaultScale
+import org.jetbrains.kotlinx.kandy.ir.scale.*
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
@@ -33,25 +32,44 @@ internal fun <T> Map<Aes, Setting>.getNPSValue(key: Aes): T? {
 }
 
 internal class Parser(plot: Plot) {
-    private val datasets: List<TableData> = plot.datasets
+
+    // TODO(add preprocessing with fill na for datasets)
+    // elements from plot
+    private val datasets: MutableList<TableData> = plot.datasets as MutableList<TableData>
     private val globalMappings = plot.globalMappings
     private val layers = plot.layers
     private val features = plot.features
-    private val freeScales = plot.freeScales
 
-    private var xAxis: Axis? = null
-    private var yAxis: Axis? = null
+    // items for option
+    private val xAxis = mutableListOf<Axis>()
+    private val yAxis = mutableListOf<Axis>()
+
+    private val typeMapping: Map<KType, AxisType> = mapOf(
+        typeOf<String>() to AxisType.CATEGORY, typeOf<String?>() to AxisType.CATEGORY,
+        typeOf<Char>() to AxisType.CATEGORY, typeOf<Char?>() to AxisType.CATEGORY,
+        typeOf<Number>() to AxisType.VALUE, typeOf<Number?>() to AxisType.VALUE,
+        typeOf<LocalDateTime>() to AxisType.TIME, typeOf<LocalDateTime?>() to AxisType.TIME,
+        typeOf<java.time.LocalDateTime>() to AxisType.TIME, typeOf<java.time.LocalDateTime?>() to AxisType.TIME,
+        typeOf<LocalDate>() to AxisType.TIME, typeOf<LocalDate?>() to AxisType.TIME,
+        typeOf<java.time.LocalDate>() to AxisType.TIME, typeOf<java.time.LocalDate?>() to AxisType.TIME,
+        typeOf<LocalTime>() to AxisType.CATEGORY, typeOf<LocalTime?>() to AxisType.CATEGORY,
+        typeOf<Month>() to AxisType.CATEGORY, typeOf<Month?>() to AxisType.CATEGORY,
+        typeOf<DayOfWeek>() to AxisType.CATEGORY, typeOf<DayOfWeek?>() to AxisType.CATEGORY,
+        typeOf<java.time.LocalTime>() to AxisType.CATEGORY, typeOf<java.time.LocalTime?>() to AxisType.CATEGORY,
+        typeOf<java.time.Month>() to AxisType.CATEGORY, typeOf<java.time.Month?>() to AxisType.CATEGORY,
+        typeOf<java.time.DayOfWeek>() to AxisType.CATEGORY, typeOf<java.time.DayOfWeek?>() to AxisType.CATEGORY
+    )
 
 
     internal fun parse(): Option {
-        var df = (datasets[0] as NamedData).dataFrame
-        val polar: Polar? = null
-        val radiusAxis: RadiusAxis? = null
-        val angleAxis: AngleAxis? = null
-        val radar: Radar? = null
-        val visualMaps = mutableListOf<VisualMap>()
-
         val layout = (features[EChartsLayout.FEATURE_NAME] as? EChartsLayout)
+        val mainDataset = datasets.first()
+
+        with(globalMappings) {
+            this[X]?.also { xAxis.add(it.toAxis(mainDataset.getType(it))) }
+            this[Y]?.also { yAxis.add(it.toAxis(mainDataset.getType(it))) }
+        }
+
         val title = layout?.title?.toEchartsTitle()
         val legend = layout?.legend?.toEchartsLegend()
         val grid = layout?.grid?.toEchartsGrid()
@@ -59,87 +77,96 @@ internal class Parser(plot: Plot) {
         val textStyle = layout?.textStyle?.toTextStyle()
         val animation = layout?.animation?.toAnimationPlotFeature()
 
-        globalMappings.forEach { (aes: Aes, mapping: Mapping) ->
-            if (mapping is PositionalMapping<*>) {
-                when (aes) {
-                    X -> {
-                        xAxis = mapping.toAxis(df[mapping.columnID].type())
-                        mapping.getNA()?.let { naValue ->
-                            df = df.fillNA(mapping.columnID).with { naValue }
-                        }
-                    }
+        val visualMaps = mutableListOf<VisualMap>()
+        val series = mutableListOf<Series>()
 
-                    Y -> {
-                        yAxis = mapping.toAxis(df[mapping.columnID].type())
-                        mapping.getNA()?.let { naValue ->
-                            df = df.fillNA(mapping.columnID).with { naValue }
-                        }
-                    }
-                }
-            }
-        }
-
-        val series = layers.mapIndexed { index, layer -> // TODO(layout???)
+        layers.forEachIndexed { index, layer ->
             layer.mappings.forEach { (aes, mapping) ->
-                if (mapping is PositionalMapping<*>) {
-                    when {
-                        (xAxis == null && aes == X) -> {
-                            xAxis = mapping.toAxis(df[mapping.columnID].type())
-                            mapping.getNA()?.let { naValue -> df = df.fillNA(mapping.columnID).with { naValue } }
-                        }
-
-                        (yAxis == null && aes == Y) -> {
-                            yAxis = mapping.toAxis(df[mapping.columnID].type())
-                            mapping.getNA()?.let { naValue -> df = df.fillNA(mapping.columnID).with { naValue } }
+                val df = datasets[layer.datasetIndex]
+                when (aes) {
+                    X -> xAxis.add(mapping.toAxis(df.getType(mapping)))
+                    Y -> yAxis.add(mapping.toAxis(df.getType(mapping)))
+                    else -> {
+                        val scale = mapping.parameters?.scale
+                        if (scale is NonPositionalScale<*, *>) {
+                            visualMaps.add(
+                                scale.toVisualMap(
+                                    aes,
+                                    mapping.columnID,
+                                    index,
+                                    df[mapping].toList(),
+                                    visualMaps.size,
+                                    df.getType(mapping)
+                                )
+                            )
                         }
                     }
-                } else if (mapping is NonPositionalMapping<*, *>) {
-                    mapping.getNA()?.let { naValue -> df = df.fillNA(mapping.columnID).with { naValue } }
-                    visualMaps.add(
-                        mapping.parameters?.scale!!.toVisualMap(
-                            aes, mapping.columnID, index,
-                            df[mapping.columnID].toList(), visualMaps.size, df[mapping.columnID].type()
-                        )
-                    )
                 }
             }
-            layer.toSeries()
+
+            when {
+                // TODO - if datasetIndex > 0, what to do with dataset and encode
+                layer.datasetIndex == 0 && datasets[layer.datasetIndex] !is GroupedData -> series.add(layer.toSeries())
+                datasets[layer.datasetIndex] is GroupedData -> series.addAll(layer.toGroupedSeries())
+            }
         }
 
-        val source = listOf(df.columnNames()) + df.map { it.values().map { l -> l?.toString() } }
-        val dataset = Dataset(source = source).takeIf { it.isNotEmpty() }
+        val source = if (mainDataset is NamedData && mainDataset.dataFrame.isNotEmpty()) {
+            listOf(mainDataset.dataFrame.columnNames()) + mainDataset.dataFrame.map {
+                it.values().map { l -> l?.toString() }
+            }
+        } else null
+        val dataset = source?.let { Dataset(source = source) }
 
         return Option(
-            title,
-            legend,
-            grid,
-            xAxis,
-            yAxis,
-            polar,
-            radiusAxis,
-            angleAxis,
-            radar,
-            visualMaps.ifEmpty { null },
-            tooltip,
-            dataset,
-            series.ifEmpty { null },
-            textStyle,
-            animation?.enable,
-            animation?.threshold,
-            animation?.duration,
-            animation?.easing,
-            animation?.delay,
+            title = title,
+            legend = legend,
+            grid = grid,
+            xAxis = xAxis.firstOrNull(),
+            yAxis = yAxis.firstOrNull(),
+            visualMap = visualMaps.ifEmpty { null },
+            tooltip = tooltip,
+            dataset = dataset,
+            series = series.ifEmpty { null },
+            textStyle = textStyle,
+            animation = animation?.enable,
+            animationThreshold = animation?.threshold,
+            animationDuration = animation?.duration,
+            animationEasing = animation?.easing,
+            animationDelay = animation?.delay,
             plotSize = layout?.size ?: (800 to 600)
         )
     }
 
-    private fun Mapping.getNA(): Any? = when (val scale = this.parameters?.scale) {
-        is PositionalContinuousScale<*> -> scale.nullValue
-        is NonPositionalContinuousScale<*, *> -> scale.nullValue
-        else -> null
+    /**
+     * Retrieves the [AnyCol] from [DataFrame] data corresponding to the specified [mapping].
+     *
+     * @param mapping The [Mapping] object containing the `columnID` to map to the appropriate data in [TableData].
+     * @return The [AnyCol] data corresponding to the specified [mapping].
+     */
+    private operator fun TableData.get(mapping: Mapping): AnyCol = when (this) {
+        is NamedData -> this.dataFrame[mapping.columnID]
+        is GroupedData -> this.dataFrame[mapping.columnID]
+        else -> error("")
     }
 
-    private fun PositionalMapping<*>.toAxis(ktype: KType): Axis {
+    private fun TableData.getType(mapping: Mapping): KType = when (this) {
+        is NamedData -> this.dataFrame[mapping.columnID].type()
+        is GroupedData -> this.dataFrame[mapping.columnID].type()
+        else -> error("")
+    }
+
+    private fun DataFrame<*>.fillNA(mapping: Mapping): DataFrame<*> {
+        val nullValue = when (val scale = mapping.parameters?.scale) {
+            is PositionalContinuousScale<*> -> scale.nullValue
+            is NonPositionalContinuousScale<*, *> -> scale.nullValue
+            else -> null
+        }
+        return nullValue?.let { nv -> this.fillNA(mapping.columnID).with { nv } } ?: this
+    }
+
+    private fun Mapping.toAxis(ktype: KType): Axis {
+        this as PositionalMapping<*>
         val params = this.parameters as EchartsPositionalMappingParameters
         val axis = params.axis
         val axisScale = params.scale
@@ -148,34 +175,12 @@ internal class Parser(plot: Plot) {
         val type = when (axisScale) {
             is PositionalCategoricalScale<*> -> AxisType.CATEGORY
             is PositionalContinuousScale<*> -> {
-                min = axisScale.min?.toString()
+                min = axisScale.min?.toString() // TODO(String?)
                 max = axisScale.max?.toString()
                 AxisType.VALUE
             }
 
-            is PositionalDefaultScale -> {
-                when (ktype) {
-                    typeOf<String>(), typeOf<String?>(), typeOf<Char>(), typeOf<Char?>() -> AxisType.CATEGORY
-                    typeOf<Number>(), typeOf<Number?>() -> AxisType.VALUE
-                    typeOf<LocalDateTime>(), typeOf<LocalDateTime?>(),
-                    typeOf<java.time.LocalDateTime>(), typeOf<java.time.LocalDateTime?>() -> AxisType.TIME
-
-                    typeOf<LocalDate>(), typeOf<LocalDate?>(),
-                    typeOf<java.time.LocalDate>(), typeOf<java.time.LocalDate?>() -> AxisType.TIME
-
-                    typeOf<LocalTime>(), typeOf<LocalTime?>(),
-                    typeOf<Month>(), typeOf<Month?>(),
-                    typeOf<DayOfWeek>(), typeOf<DayOfWeek?>(),
-                    typeOf<java.time.LocalTime>(), typeOf<java.time.LocalTime?>(),
-                    typeOf<java.time.Month>(), typeOf<java.time.Month?>(),
-                    typeOf<java.time.DayOfWeek>(), typeOf<java.time.DayOfWeek?>()
-                    -> AxisType.CATEGORY
-
-                    else -> AxisType.VALUE
-                }
-            }
-
-            else -> AxisType.VALUE
+            is PositionalDefaultScale -> typeMapping[ktype] ?: AxisType.VALUE
         }
         return Axis(name = axis.name, show = axis.show, type = type.value, min = min, max = max)
     }
@@ -183,22 +188,41 @@ internal class Parser(plot: Plot) {
     private fun Layer.toSeries(): Series {
         val x = mappings[X]?.columnID ?: globalMappings[X]?.columnID
         val y = mappings[Y]?.columnID ?: globalMappings[Y]?.columnID
-        val encode = Encode(x, y).takeIf { it.isNotEmpty() }
-        val name = settings.getNPSValue(NAME)
-            ?: if (xAxis?.name == null && x == null && yAxis?.name == null && y == null)
-                null
-            else
-                "${xAxis?.name ?: x} ${yAxis?.name ?: y}".trim()
 
-        return when (geom) {
-            LINE -> this.toLineSeries(name, encode)
-            AREA -> this.toAreaSeries(name, encode)
-            BAR -> this.toBarSeries(name, encode)
-            PIE -> this.toPieSeries(name, encode)
-            POINT -> this.toPointSeries(name, encode)
-            CANDLESTICK -> this.toCandlestickSeries(name, encode)
-            BOXPLOT -> this.toBoxplotSeries(name, encode)
+        val encode = Encode(x, y).takeIf { it.isNotEmpty() }
+        val name = settings.getNPSValue(NAME) ?: buildString {
+            x?.let { append(it) }
+            if (x != null && y != null) append(" ")
+            y?.let { append(it) }
+        }.takeIf { it.isNotEmpty() }
+
+        return getSeries(name, encode, null)
+    }
+
+    private fun Layer.toGroupedSeries(): List<Series> {
+        val groupedData = datasets[datasetIndex] as GroupedData
+        val x = this.mappings[X]?.columnID ?: globalMappings[X]?.columnID
+        val y = this.mappings[Y]?.columnID ?: globalMappings[Y]?.columnID
+        val groupedSeries = mutableListOf<Series>()
+        groupedData.keys.forEach { columnName ->
+            groupedData.groupBy.map { _ ->
+                val data = group.select(x!!, y!!).map { it.values().map { l -> Element.of(l) } }
+                groupedSeries.add(getSeries(key.getValue(columnName), null, data)) // TODO(aggregate data better)
+            }
+
+        }
+        return groupedSeries
+    }
+
+    private fun Layer.getSeries(name: String?, encode: Encode?, data: List<List<Element?>>? = null): Series =
+        when (geom) {
+            LINE -> this.toLineSeries(name, encode, data)
+            AREA -> this.toAreaSeries(name, encode, data)
+            BAR -> this.toBarSeries(name, encode, data)
+            PIE -> this.toPieSeries(name, encode, data)
+            POINT -> this.toPointSeries(name, encode, data)
+            CANDLESTICK -> this.toCandlestickSeries(name, encode, data)
+            BOXPLOT -> this.toBoxplotSeries(name, encode, data)
             else -> TODO("exception?")
         }
-    }
 }
