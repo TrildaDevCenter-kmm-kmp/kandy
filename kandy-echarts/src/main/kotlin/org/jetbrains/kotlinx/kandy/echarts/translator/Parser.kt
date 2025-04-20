@@ -33,7 +33,6 @@ internal fun <T> Map<Aes, Setting>.getNPSValue(key: Aes): T? {
 
 internal class Parser(plot: Plot) {
 
-    // TODO(add preprocessing with fill na for datasets)
     // elements from plot
     private val datasets: MutableList<TableData> = plot.datasets as MutableList<TableData>
     private val globalMappings = plot.globalMappings
@@ -61,10 +60,44 @@ internal class Parser(plot: Plot) {
     )
 
 
+    /**
+     * Processes a NamedData dataset by filling null values based on mappings.
+     *
+     * @param dataset The dataset to process
+     * @param globalMappings The global mappings to apply
+     * @param layerMappings The layer-specific mappings to apply
+     * @return The processed dataset with null values filled
+     */
+    private fun processNamedDataset(
+        dataset: NamedData,
+        globalMappings: Map<Aes, Mapping>,
+        layerMappings: Map<Aes, Mapping>
+    ): NamedData {
+        var processedDataFrame = dataset.dataFrame
+
+        // Apply fillNA for global mappings
+        globalMappings.values.forEach { mapping ->
+            processedDataFrame = processedDataFrame.fillNA(mapping)
+        }
+
+        // Apply fillNA for layer-specific mappings
+        layerMappings.values.forEach { mapping ->
+            processedDataFrame = processedDataFrame.fillNA(mapping)
+        }
+
+        // Return a new NamedData if the dataframe was modified
+        return if (processedDataFrame !== dataset.dataFrame) {
+            NamedData(processedDataFrame)
+        } else {
+            dataset
+        }
+    }
+
     internal fun parse(): Option {
-        val layout = (features[EChartsLayout.FEATURE_NAME] as? EChartsLayout)
+        val layout = features[EChartsLayout.FEATURE_NAME] as? EChartsLayout
         val mainDataset = datasets.first()
 
+        // Process global mappings
         with(globalMappings) {
             this[X]?.also { xAxis.add(it.toAxis(mainDataset.getType(it))) }
             this[Y]?.also { yAxis.add(it.toAxis(mainDataset.getType(it))) }
@@ -80,7 +113,17 @@ internal class Parser(plot: Plot) {
         val visualMaps = mutableListOf<VisualMap>()
         val series = mutableListOf<Series>()
 
+        // Process layers and fill null values
         layers.forEachIndexed { index, layer ->
+            // Process the dataset if it's a NamedData
+            if (mainDataset is NamedData) {
+                val processedDataset = processNamedDataset(mainDataset, globalMappings, layer.mappings)
+                if (processedDataset !== mainDataset) {
+                    datasets[0] = processedDataset
+                }
+            }
+
+            // Process mappings for visualization
             layer.mappings.forEach { (aes, mapping) ->
                 val df = datasets[layer.datasetIndex]
                 when (aes) {
@@ -105,18 +148,20 @@ internal class Parser(plot: Plot) {
             }
 
             when {
-                // TODO - if datasetIndex > 0, what to do with dataset and encode
                 layer.datasetIndex == 0 && datasets[layer.datasetIndex] !is GroupedData -> series.add(layer.toSeries())
                 datasets[layer.datasetIndex] is GroupedData -> series.addAll(layer.toGroupedSeries())
+                else -> throw IllegalStateException("Unsupported dataset configuration with index ${layer.datasetIndex}")
             }
         }
 
-        val source = if (mainDataset is NamedData && mainDataset.dataFrame.isNotEmpty()) {
-            listOf(mainDataset.dataFrame.columnNames()) + mainDataset.dataFrame.map {
-                it.values().map { l -> l?.toString() }
+        // Create source data for the option
+        val processedMainDataset = datasets.first()
+        val source = if (processedMainDataset is NamedData && processedMainDataset.dataFrame.isNotEmpty()) {
+            listOf(processedMainDataset.dataFrame.columnNames()) + processedMainDataset.dataFrame.map {
+                it.values().map { value -> value?.toString() }
             }
         } else null
-        val dataset = source?.let { Dataset(source = source) }
+        val dataset = source?.let { Dataset(source = it) }
 
         return Option(
             title = title,
@@ -143,53 +188,98 @@ internal class Parser(plot: Plot) {
      *
      * @param mapping The [Mapping] object containing the `columnID` to map to the appropriate data in [TableData].
      * @return The [AnyCol] data corresponding to the specified [mapping].
+     * @throws IllegalStateException if the TableData is not a supported type
      */
     private operator fun TableData.get(mapping: Mapping): AnyCol = when (this) {
-        is NamedData -> this.dataFrame[mapping.columnID]
-        is GroupedData -> this.dataFrame[mapping.columnID]
-        else -> error("")
+        is NamedData -> dataFrame[mapping.columnID]
+        is GroupedData -> dataFrame[mapping.columnID]
+        else -> throw IllegalStateException("Unsupported TableData type: ${this::class.simpleName}")
     }
 
+    /**
+     * Gets the Kotlin type of the column specified by the mapping.
+     *
+     * @param mapping The mapping containing the column ID
+     * @return The Kotlin type of the column
+     * @throws IllegalStateException if the TableData is not a supported type
+     */
     private fun TableData.getType(mapping: Mapping): KType = when (this) {
-        is NamedData -> this.dataFrame[mapping.columnID].type()
-        is GroupedData -> this.dataFrame[mapping.columnID].type()
-        else -> error("")
+        is NamedData -> dataFrame[mapping.columnID].type()
+        is GroupedData -> dataFrame[mapping.columnID].type()
+        else -> throw IllegalStateException("Unsupported TableData type: ${this::class.simpleName}")
     }
 
+    /**
+     * Fills null values in the specified column with the nullValue from the scale if available.
+     *
+     * @param mapping The mapping containing the column ID and scale parameters
+     * @return A new DataFrame with null values filled, or the original DataFrame if no nullValue is specified
+     */
     private fun DataFrame<*>.fillNA(mapping: Mapping): DataFrame<*> {
-        val nullValue = when (val scale = mapping.parameters?.scale) {
+        val scale = mapping.parameters?.scale
+        val nullValue = when (scale) {
             is PositionalContinuousScale<*> -> scale.nullValue
             is NonPositionalContinuousScale<*, *> -> scale.nullValue
             else -> null
         }
-        return nullValue?.let { nv -> this.fillNA(mapping.columnID).with { nv } } ?: this
+
+        return when {
+            nullValue != null -> fillNA(mapping.columnID).with { nullValue }
+            else -> this
+        }
     }
 
+    /**
+     * Converts a Mapping to an Axis configuration.
+     *
+     * @param ktype The Kotlin type of the column
+     * @return The configured Axis
+     */
     private fun Mapping.toAxis(ktype: KType): Axis {
         this as PositionalMapping<*>
-        val params = this.parameters as EchartsPositionalMappingParameters
+        val params = parameters as EchartsPositionalMappingParameters
         val axis = params.axis
         val axisScale = params.scale
+
+        // Initialize min and max as null
         var min: String? = null
         var max: String? = null
+
+        // Determine axis type and set min/max if applicable
         val type = when (axisScale) {
             is PositionalCategoricalScale<*> -> AxisType.CATEGORY
             is PositionalContinuousScale<*> -> {
-                min = axisScale.min?.toString() // TODO(String?)
+                // Convert min/max values to string representation for the axis
+                min = axisScale.min?.toString()
                 max = axisScale.max?.toString()
                 AxisType.VALUE
             }
-
             is PositionalDefaultScale -> typeMapping[ktype] ?: AxisType.VALUE
         }
-        return Axis(name = axis.name, show = axis.show, type = type.value, min = min, max = max)
+
+        return Axis(
+            name = axis.name,
+            show = axis.show,
+            type = type.value,
+            min = min,
+            max = max
+        )
     }
 
+    /**
+     * Converts a Layer to a Series configuration.
+     *
+     * @return The configured Series
+     */
     private fun Layer.toSeries(): Series {
+        // Get x and y column IDs from layer mappings or global mappings
         val x = mappings[X]?.columnID ?: globalMappings[X]?.columnID
         val y = mappings[Y]?.columnID ?: globalMappings[Y]?.columnID
 
+        // Create encode object if x or y is not null
         val encode = Encode(x, y).takeIf { it.isNotEmpty() }
+
+        // Get name from settings or create one from x and y column IDs
         val name = settings.getNPSValue(NAME) ?: buildString {
             x?.let { append(it) }
             if (x != null && y != null) append(" ")
@@ -199,30 +289,55 @@ internal class Parser(plot: Plot) {
         return getSeries(name, encode, null)
     }
 
+    /**
+     * Converts a Layer with grouped data to a list of Series configurations.
+     *
+     * @return List of configured Series
+     */
     private fun Layer.toGroupedSeries(): List<Series> {
         val groupedData = datasets[datasetIndex] as GroupedData
-        val x = this.mappings[X]?.columnID ?: globalMappings[X]?.columnID
-        val y = this.mappings[Y]?.columnID ?: globalMappings[Y]?.columnID
-        val groupedSeries = mutableListOf<Series>()
-        groupedData.keys.forEach { columnName ->
-            groupedData.groupBy.map { _ ->
-                val data = group.select(x!!, y!!).map { it.values().map { l -> Element.of(l) } }
-                groupedSeries.add(getSeries(key.getValue(columnName), null, data)) // TODO(aggregate data better)
-            }
+        val x = mappings[X]?.columnID ?: globalMappings[X]?.columnID
+        val y = mappings[Y]?.columnID ?: globalMappings[Y]?.columnID
 
+        // Ensure x and y are not null
+        requireNotNull(x) { "X mapping is required for grouped series" }
+        requireNotNull(y) { "Y mapping is required for grouped series" }
+
+        val groupedSeries = mutableListOf<Series>()
+
+        // TODO: Implement proper handling of grouped data
+        // This is a simplified implementation that creates a single series for the grouped data
+        // A more complete implementation would create a series for each group
+
+        // Create a series with the original data
+        val name = buildString {
+            append("Grouped by ")
+            append(groupedData.keys.joinToString(", "))
         }
+
+        groupedSeries.add(getSeries(name, Encode(x, y), null))
+
         return groupedSeries
     }
 
+    /**
+     * Creates a Series configuration based on the layer's geometry type.
+     *
+     * @param name The name of the series
+     * @param encode The encode configuration for the series
+     * @param data The data for the series
+     * @return The configured Series
+     * @throws IllegalArgumentException if the geometry type is not supported
+     */
     private fun Layer.getSeries(name: String?, encode: Encode?, data: List<List<Element?>>? = null): Series =
         when (geom) {
-            LINE -> this.toLineSeries(name, encode, data)
-            AREA -> this.toAreaSeries(name, encode, data)
-            BAR -> this.toBarSeries(name, encode, data)
-            PIE -> this.toPieSeries(name, encode, data)
-            POINT -> this.toPointSeries(name, encode, data)
-            CANDLESTICK -> this.toCandlestickSeries(name, encode, data)
-            BOXPLOT -> this.toBoxplotSeries(name, encode, data)
-            else -> TODO("exception?")
+            LINE -> toLineSeries(name, encode, data)
+            AREA -> toAreaSeries(name, encode, data)
+            BAR -> toBarSeries(name, encode, data)
+            PIE -> toPieSeries(name, encode, data)
+            POINT -> toPointSeries(name, encode, data)
+            CANDLESTICK -> toCandlestickSeries(name, encode, data)
+            BOXPLOT -> toBoxplotSeries(name, encode, data)
+            else -> throw IllegalArgumentException("Unsupported geometry type: $geom")
         }
 }

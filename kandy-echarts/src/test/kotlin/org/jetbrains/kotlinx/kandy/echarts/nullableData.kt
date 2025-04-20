@@ -155,7 +155,6 @@ class NullableDataTest {
     }
 
     @Test
-    @Ignore
     fun `bars with nulls and fill null for y-axis`() {
         val expected = """
             {
