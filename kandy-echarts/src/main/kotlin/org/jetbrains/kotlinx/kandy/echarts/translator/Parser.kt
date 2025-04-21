@@ -10,6 +10,10 @@ import org.jetbrains.kotlinx.kandy.echarts.layers.aes.NAME
 import org.jetbrains.kotlinx.kandy.echarts.layers.aes.X
 import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y
 import org.jetbrains.kotlinx.kandy.echarts.layers.*
+import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y_CLOSE
+import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y_HIGH
+import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y_LOW
+import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y_OPEN
 import org.jetbrains.kotlinx.kandy.echarts.scale.EchartsPositionalMappingParameters
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.*
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.*
@@ -128,7 +132,7 @@ internal class Parser(plot: Plot) {
                 val df = datasets[layer.datasetIndex]
                 when (aes) {
                     X -> xAxis.add(mapping.toAxis(df.getType(mapping)))
-                    Y -> yAxis.add(mapping.toAxis(df.getType(mapping)))
+                    Y, Y_OPEN, Y_CLOSE, Y_LOW, Y_HIGH -> yAxis.add(mapping.toAxis(df.getType(mapping)))
                     else -> {
                         val scale = mapping.parameters?.scale
                         if (scale is NonPositionalScale<*, *>) {
@@ -157,8 +161,10 @@ internal class Parser(plot: Plot) {
         // Create source data for the option
         val processedMainDataset = datasets.first()
         val source = if (processedMainDataset is NamedData && processedMainDataset.dataFrame.isNotEmpty()) {
-            listOf(processedMainDataset.dataFrame.columnNames()) + processedMainDataset.dataFrame.map {
-                it.values().map { value -> value?.toString() }
+            listOf(
+                processedMainDataset.dataFrame.columnNames()
+                    .map { Element.of(it) }) + processedMainDataset.dataFrame.map {
+                it.values().map { value -> Element.of(value) }
             }
         } else null
         val dataset = source?.let { Dataset(source = it) }
@@ -254,6 +260,7 @@ internal class Parser(plot: Plot) {
                 max = axisScale.max?.toString()
                 AxisType.VALUE
             }
+
             is PositionalDefaultScale -> typeMapping[ktype] ?: AxisType.VALUE
         }
 
@@ -274,7 +281,18 @@ internal class Parser(plot: Plot) {
     private fun Layer.toSeries(): Series {
         // Get x and y column IDs from layer mappings or global mappings
         val x = mappings[X]?.columnID ?: globalMappings[X]?.columnID
-        val y = mappings[Y]?.columnID ?: globalMappings[Y]?.columnID
+        val y = when {
+            mappings[Y] != null -> { listOf(mappings[Y]!!.columnID) }
+            globalMappings[Y] != null -> listOf(globalMappings[Y]!!.columnID)
+            mappings[Y_OPEN] != null && mappings[Y_CLOSE] != null && mappings[Y_LOW] != null && mappings[Y_HIGH] != null -> listOf(
+                mappings[Y_OPEN]!!.columnID,
+                mappings[Y_CLOSE]!!.columnID,
+                mappings[Y_LOW]!!.columnID,
+                mappings[Y_HIGH]!!.columnID
+            )
+
+            else -> null
+        }
 
         // Create encode object if x or y is not null
         val encode = Encode(x, y).takeIf { it.isNotEmpty() }
@@ -297,7 +315,18 @@ internal class Parser(plot: Plot) {
     private fun Layer.toGroupedSeries(): List<Series> {
         val groupedData = datasets[datasetIndex] as GroupedData
         val x = mappings[X]?.columnID ?: globalMappings[X]?.columnID
-        val y = mappings[Y]?.columnID ?: globalMappings[Y]?.columnID
+        val y = when {
+            mappings[Y] != null -> { listOf(mappings[Y]!!.columnID) }
+            globalMappings[Y] != null -> listOf(globalMappings[Y]!!.columnID)
+            mappings[Y_OPEN] != null && mappings[Y_CLOSE] != null && mappings[Y_LOW] != null && mappings[Y_HIGH] != null -> listOf(
+                mappings[Y_OPEN]!!.columnID,
+                mappings[Y_CLOSE]!!.columnID,
+                mappings[Y_LOW]!!.columnID,
+                mappings[Y_HIGH]!!.columnID
+            )
+
+            else -> null
+        }
 
         // Ensure x and y are not null
         requireNotNull(x) { "X mapping is required for grouped series" }
