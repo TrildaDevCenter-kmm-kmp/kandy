@@ -94,23 +94,23 @@ public class CandlestickHandler(parent: LayerCreatorScope) : EchartsLayerBuilder
 
     public fun <T> upColor(
         column: ColumnReference<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(COLOR, column, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(COLOR, column, params)
 
     public fun <T> upColor(
         column: KProperty<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(COLOR, column, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(COLOR, column, params)
 
     public fun upColor(
         column: String, params: EchartsNonPositionalMappingParameters<*, Color>.() -> Unit = {}
-    ): NonPositionalMapping<*, Color> = bindingHandler.nonPosMappingCont(COLOR, column, params)
+    ): NonPositionalMapping<*, Color> = bindingHandler.nonPosMappingCat(COLOR, column, params)
 
     public fun <T> upColor(
         values: Iterable<T>, name: String? = null, params: NonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(COLOR, values, name, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(COLOR, values, name, params)
 
     public fun <T> upColor(
         values: DataColumn<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(COLOR, values, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(COLOR, values, params)
 
     public var downColor: Color? = null
         set(value) {
@@ -120,23 +120,23 @@ public class CandlestickHandler(parent: LayerCreatorScope) : EchartsLayerBuilder
 
     public fun <T> downColor(
         column: ColumnReference<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(DOWN_COLOR, column, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(DOWN_COLOR, column, params)
 
     public fun <T> downColor(
         column: KProperty<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(DOWN_COLOR, column, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(DOWN_COLOR, column, params)
 
     public fun downColor(
         column: String, params: EchartsNonPositionalMappingParameters<*, Color>.() -> Unit = {}
-    ): NonPositionalMapping<*, Color> = bindingHandler.nonPosMappingCont(DOWN_COLOR, column, params)
+    ): NonPositionalMapping<*, Color> = bindingHandler.nonPosMappingCat(DOWN_COLOR, column, params)
 
     public fun <T> downColor(
         values: Iterable<T>, name: String? = null, params: NonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(DOWN_COLOR, values, name, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(DOWN_COLOR, values, name, params)
 
     public fun <T> downColor(
         values: DataColumn<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(DOWN_COLOR, values, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(DOWN_COLOR, values, params)
 
     public var upBorderColor: Color? = null
         set(value) {
@@ -146,23 +146,23 @@ public class CandlestickHandler(parent: LayerCreatorScope) : EchartsLayerBuilder
 
     public fun <T> upBorderColor(
         column: ColumnReference<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(BORDER_COLOR, column, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(BORDER_COLOR, column, params)
 
     public fun <T> upBorderColor(
         column: KProperty<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(BORDER_COLOR, column, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(BORDER_COLOR, column, params)
 
     public fun upBorderColor(
         column: String, params: EchartsNonPositionalMappingParameters<*, Color>.() -> Unit = {}
-    ): NonPositionalMapping<*, Color> = bindingHandler.nonPosMappingCont(BORDER_COLOR, column, params)
+    ): NonPositionalMapping<*, Color> = bindingHandler.nonPosMappingCat(BORDER_COLOR, column, params)
 
     public fun <T> upBorderColor(
         values: Iterable<T>, name: String? = null, params: NonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(BORDER_COLOR, values, name, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(BORDER_COLOR, values, name, params)
 
     public fun <T> upBorderColor(
         values: DataColumn<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(BORDER_COLOR, values, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(BORDER_COLOR, values, params)
 
     public var downBorderColor: Color? = null
         set(value) {
@@ -172,23 +172,23 @@ public class CandlestickHandler(parent: LayerCreatorScope) : EchartsLayerBuilder
 
     public fun <T> downBorderColor(
         column: ColumnReference<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(DOWN_BORDER_COLOR, column, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(DOWN_BORDER_COLOR, column, params)
 
     public fun <T> downBorderColor(
         column: KProperty<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(DOWN_BORDER_COLOR, column, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(DOWN_BORDER_COLOR, column, params)
 
     public fun downBorderColor(
         column: String, params: EchartsNonPositionalMappingParameters<*, Color>.() -> Unit = {}
-    ): NonPositionalMapping<*, Color> = bindingHandler.nonPosMappingCont(DOWN_BORDER_COLOR, column, params)
+    ): NonPositionalMapping<*, Color> = bindingHandler.nonPosMappingCat(DOWN_BORDER_COLOR, column, params)
 
     public fun <T> downBorderColor(
         values: Iterable<T>, name: String? = null, params: NonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(DOWN_BORDER_COLOR, values, name, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(DOWN_BORDER_COLOR, values, name, params)
 
     public fun <T> downBorderColor(
         values: DataColumn<T>, params: EchartsNonPositionalMappingParameters<T, Color>.() -> Unit = {}
-    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCont(DOWN_BORDER_COLOR, values, params)
+    ): NonPositionalMapping<T, Color> = bindingHandler.nonPosMappingCat(DOWN_BORDER_COLOR, values, params)
 
     /**
      * Animation options settings for [candlestick][org.jetbrains.kotlinx.kandy.echarts.layers.candlestick].

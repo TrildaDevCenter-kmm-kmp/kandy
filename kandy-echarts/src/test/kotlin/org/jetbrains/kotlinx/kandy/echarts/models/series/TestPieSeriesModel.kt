@@ -48,13 +48,6 @@ class TestPieSeriesModel {
                 ],
                 "seriesLayoutBy": "column",
                 "datasetIndex": 0,
-                "data": [
-                    12,
-                    34,
-                    56,
-                    10,
-                    23
-                ],
                 "silent": false,
                 "animationType": "expansion",
                 "animationTypeUpdate": "transition",
@@ -74,7 +67,6 @@ class TestPieSeriesModel {
             avoidLabelOverlap = true, stillShowZeroSum = true, percentPrecision = 2, cursor = "pointer", zlevel = 0,
             z = 2, left = 0.px, top = 0.px, right = 0.px, bottom = 0.px, showEmptyCircle = true,
             center = listOf(50.pct, 50.pct), radius = listOf(0.px, 75.pct), seriesLayoutBy = "column", datasetIndex = 0,
-            data = listOf(listOf(12, 34, 56, 10, 23).map { Element.IntEl(it) }),
             silent = false, animationType = "expansion", animationTypeUpdate = "transition", animation = true,
             animationThreshold = 2000, animationDuration = 1000, animationEasing = "cubicOut", animationDelay = 0,
             animationDurationUpdate = 300, animationEasingUpdate = "cubicOut", animationDelayUpdate = 0

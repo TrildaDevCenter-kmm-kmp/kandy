@@ -3,17 +3,14 @@ package org.jetbrains.kotlinx.kandy.echarts.translator
 import kotlinx.datetime.*
 import org.jetbrains.kotlinx.dataframe.AnyCol
 import org.jetbrains.kotlinx.dataframe.DataFrame
-import org.jetbrains.kotlinx.dataframe.api.*
+import org.jetbrains.kotlinx.dataframe.api.fillNA
+import org.jetbrains.kotlinx.dataframe.api.isNotEmpty
+import org.jetbrains.kotlinx.dataframe.api.map
+import org.jetbrains.kotlinx.dataframe.api.with
 import org.jetbrains.kotlinx.kandy.dsl.internal.dataframe.GroupedData
 import org.jetbrains.kotlinx.kandy.dsl.internal.dataframe.NamedData
-import org.jetbrains.kotlinx.kandy.echarts.layers.aes.NAME
-import org.jetbrains.kotlinx.kandy.echarts.layers.aes.X
-import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y
 import org.jetbrains.kotlinx.kandy.echarts.layers.*
-import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y_CLOSE
-import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y_HIGH
-import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y_LOW
-import org.jetbrains.kotlinx.kandy.echarts.layers.aes.Y_OPEN
+import org.jetbrains.kotlinx.kandy.echarts.layers.aes.*
 import org.jetbrains.kotlinx.kandy.echarts.scale.EchartsPositionalMappingParameters
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.*
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.*
@@ -22,7 +19,10 @@ import org.jetbrains.kotlinx.kandy.echarts.translator.option.util.Element
 import org.jetbrains.kotlinx.kandy.ir.Layer
 import org.jetbrains.kotlinx.kandy.ir.Plot
 import org.jetbrains.kotlinx.kandy.ir.aes.Aes
-import org.jetbrains.kotlinx.kandy.ir.bindings.*
+import org.jetbrains.kotlinx.kandy.ir.bindings.Mapping
+import org.jetbrains.kotlinx.kandy.ir.bindings.NonPositionalSetting
+import org.jetbrains.kotlinx.kandy.ir.bindings.PositionalMapping
+import org.jetbrains.kotlinx.kandy.ir.bindings.Setting
 import org.jetbrains.kotlinx.kandy.ir.data.TableData
 import org.jetbrains.kotlinx.kandy.ir.scale.*
 import kotlin.reflect.KType
@@ -133,6 +133,7 @@ internal class Parser(plot: Plot) {
                 when (aes) {
                     X -> xAxis.add(mapping.toAxis(df.getType(mapping)))
                     Y, Y_OPEN, Y_CLOSE, Y_LOW, Y_HIGH -> yAxis.add(mapping.toAxis(df.getType(mapping)))
+                    PIE_DATA_NAME, PIE_DATA_VALUES -> {}
                     else -> {
                         val scale = mapping.parameters?.scale
                         if (scale is NonPositionalScale<*, *>) {
@@ -282,7 +283,10 @@ internal class Parser(plot: Plot) {
         // Get x and y column IDs from layer mappings or global mappings
         val x = mappings[X]?.columnID ?: globalMappings[X]?.columnID
         val y = when {
-            mappings[Y] != null -> { listOf(mappings[Y]!!.columnID) }
+            mappings[Y] != null -> {
+                listOf(mappings[Y]!!.columnID)
+            }
+
             globalMappings[Y] != null -> listOf(globalMappings[Y]!!.columnID)
             mappings[Y_OPEN] != null && mappings[Y_CLOSE] != null && mappings[Y_LOW] != null && mappings[Y_HIGH] != null -> listOf(
                 mappings[Y_OPEN]!!.columnID,
@@ -301,10 +305,20 @@ internal class Parser(plot: Plot) {
         val name = settings.getNPSValue(NAME) ?: buildString {
             x?.let { append(it) }
             if (x != null && y != null) append(" ")
-            y?.let { append(it) }
+            y?.let { append(it.joinToString(separator = " ", prefix = "", postfix = "")) }
         }.takeIf { it.isNotEmpty() }
 
-        return getSeries(name, encode, null)
+
+        val data = if (mappings[PIE_DATA_NAME]?.columnID != null && mappings[PIE_DATA_VALUES]?.columnID != null)
+            (datasets[0] as NamedData).dataFrame.map {
+                mapOf(
+                    "name" to Element.of(it[mappings[PIE_DATA_NAME]!!.columnID]),
+                    "value" to Element.of(it[mappings[PIE_DATA_VALUES]!!.columnID])
+                )
+            }
+        else null
+
+        return getSeries(name, encode, data)
     }
 
     /**
@@ -316,7 +330,10 @@ internal class Parser(plot: Plot) {
         val groupedData = datasets[datasetIndex] as GroupedData
         val x = mappings[X]?.columnID ?: globalMappings[X]?.columnID
         val y = when {
-            mappings[Y] != null -> { listOf(mappings[Y]!!.columnID) }
+            mappings[Y] != null -> {
+                listOf(mappings[Y]!!.columnID)
+            }
+
             globalMappings[Y] != null -> listOf(globalMappings[Y]!!.columnID)
             mappings[Y_OPEN] != null && mappings[Y_CLOSE] != null && mappings[Y_LOW] != null && mappings[Y_HIGH] != null -> listOf(
                 mappings[Y_OPEN]!!.columnID,
@@ -358,15 +375,16 @@ internal class Parser(plot: Plot) {
      * @return The configured Series
      * @throws IllegalArgumentException if the geometry type is not supported
      */
-    private fun Layer.getSeries(name: String?, encode: Encode?, data: List<List<Element?>>? = null): Series =
+    @Suppress("UNCHECKED_CAST")
+    private fun Layer.getSeries(name: String?, encode: Encode?, data: List<Any?>? = null): Series =
         when (geom) {
-            LINE -> toLineSeries(name, encode, data)
-            AREA -> toAreaSeries(name, encode, data)
-            BAR -> toBarSeries(name, encode, data)
-            PIE -> toPieSeries(name, encode, data)
-            POINT -> toPointSeries(name, encode, data)
-            CANDLESTICK -> toCandlestickSeries(name, encode, data)
-            BOXPLOT -> toBoxplotSeries(name, encode, data)
+            LINE -> toLineSeries(name, encode, data as List<List<Element?>>?)
+            AREA -> toAreaSeries(name, encode, data as List<List<Element?>>?)
+            BAR -> toBarSeries(name, encode, data as List<List<Element?>>?)
+            PIE -> toPieSeries(name, encode, data as List<Map<String, Element?>>?)
+            POINT -> toPointSeries(name, encode, data as List<List<Element?>>?)
+            CANDLESTICK -> toCandlestickSeries(name, encode, data as List<List<Element?>>?)
+            BOXPLOT -> toBoxplotSeries(name, encode, data as List<List<Element?>>?)
             else -> throw IllegalArgumentException("Unsupported geometry type: $geom")
         }
 }

@@ -166,8 +166,8 @@ public inline fun LayerCreatorScope.bars(block: BarHandler.() -> Unit) {
     createLayer(BarHandler(this), block)
 }
 
-public inline fun LayerCreatorScope.pie(block: PieContext.() -> Unit) {
-    createLayer(PieContext(this), block)
+public inline fun LayerCreatorScope.pie(block: PieHandler.() -> Unit) {
+    createLayer(PieHandler(this), block)
 }
 
 /**

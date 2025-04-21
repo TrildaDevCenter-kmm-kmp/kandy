@@ -3,18 +3,12 @@ package org.jetbrains.kotlinx.kandy.echarts.translator.option.series
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.settings.*
+import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.settings.marks.EchartsMarkArea
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.settings.marks.EchartsMarkLine
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.settings.marks.EchartsMarkPoint
-import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.settings.marks.EchartsMarkArea
-import org.jetbrains.kotlinx.kandy.echarts.translator.option.util.Element
-import org.jetbrains.kotlinx.kandy.echarts.translator.serializers.DataElementListSerializer
-
-//import org.jetbrains.kotlinx.kandy.echarts.translator.serializers.SeriesSerializer
 
 @OptIn(ExperimentalSerializationApi::class)
-@Serializable//(with = SeriesSerializer::class)
-//TODO(JsonClassDiscriminator)
-//@JsonClassDiscriminator("type")
+@Serializable
 internal sealed class Series {
     //    abstract val type: String
     abstract val id: String?
@@ -30,8 +24,7 @@ internal sealed class Series {
     abstract val dimensions: List<Dimension>?
     abstract val encode: Encode?
     abstract val dataGroupId: String?
-    @Serializable(with = DataElementListSerializer::class)
-    abstract val data: List<List<Element?>>? // TODO!!! Data
+    abstract val data: List<Any?>? // TODO!!! Data
     abstract val markPoint: EchartsMarkPoint?
     abstract val markLine: EchartsMarkLine?
     abstract val markArea: EchartsMarkArea?

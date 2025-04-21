@@ -69,7 +69,7 @@ public enum class AnimationType(public val type: String) {
 }
 
 /**
- * Animation settings for [Pie][org.jetbrains.kotlinx.kandy.echarts.layers.context.PieContext] plot.
+ * Animation settings for [Pie][org.jetbrains.kotlinx.kandy.echarts.layers.context.PieHandler] plot.
  *
  * @property enable responsible for enabling animation. By default `true`.
  * @property type initial [animation type][AnimationType]. By default `expansion`.
@@ -82,7 +82,7 @@ public enum class AnimationType(public val type: String) {
  *
  * @see AnimationType
  * @see AnimationEasing
- * @see org.jetbrains.kotlinx.kandy.echarts.layers.context.PieContext
+ * @see org.jetbrains.kotlinx.kandy.echarts.layers.context.PieHandler
  */
 public class AnimationPie(
     public var enable: Boolean? = null,

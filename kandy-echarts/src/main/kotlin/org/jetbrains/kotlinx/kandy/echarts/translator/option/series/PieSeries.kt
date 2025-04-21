@@ -7,10 +7,9 @@ import org.jetbrains.kotlinx.kandy.echarts.settings.SizeUnit
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.settings.*
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.series.settings.marks.*
 import org.jetbrains.kotlinx.kandy.echarts.translator.option.util.Element
-import org.jetbrains.kotlinx.kandy.echarts.translator.serializers.DataElementListSerializer
 import org.jetbrains.kotlinx.kandy.ir.Layer
 
-internal fun Layer.toPieSeries(name: String?, encode: Encode?, data: List<List<Element?>>?): PieSeries {
+internal fun Layer.toPieSeries(name: String?, encode: Encode?, data: List<Map<String, Element?>>?): PieSeries {
     val animation = (features[AnimationLayerFeature.FEATURE_NAME] as? AnimationLayerFeature)
 
     return PieSeries(
@@ -76,8 +75,7 @@ internal class PieSeries(
     override val dimensions: List<Dimension>? = null,
     override val encode: Encode? = null,
     override val dataGroupId: String? = null,
-    @Serializable(with = DataElementListSerializer::class)
-    override val data: List<List<Element?>>? = null,
+    override val data: List<Map<String, Element?>>? = null,
     override val markPoint: EchartsMarkPoint? = null,
     override val markLine: EchartsMarkLine? = null,
     override val markArea: EchartsMarkArea? = null,

@@ -47,15 +47,15 @@ class NullableDataTest {
                     ],
                     [
                         "first",
-                        "1"
+                        1
                     ],
                     [
                         "second",
-                        "2"
+                        2
                     ],
                     [
                         null,
-                        "3"
+                        3
                     ],
                     [
                         "fourth",
@@ -63,7 +63,7 @@ class NullableDataTest {
                     ],
                     [
                         "fifth",
-                        "5"
+                        5
                     ]
                 ]
             },
@@ -74,7 +74,9 @@ class NullableDataTest {
                     "showSymbol": false,
                     "encode": {
                         "x": "days",
-                        "y": "nums"
+                        "y": [
+                            "nums"
+                        ]
                     }
                 }
             ]
@@ -108,15 +110,15 @@ class NullableDataTest {
                         ],
                         [
                             "first",
-                            "1"
+                            1
                         ],
                         [
                             "second",
-                            "2"
+                            2
                         ],
                         [
                             null,
-                            "3"
+                            3
                         ],
                         [
                             "fourth",
@@ -124,7 +126,7 @@ class NullableDataTest {
                         ],
                         [
                             "fifth",
-                            "5"
+                            5
                         ]
                     ]
                 },
@@ -136,7 +138,9 @@ class NullableDataTest {
                         "areaStyle": {},
                         "encode": {
                             "x": "days",
-                            "y": "nums"
+                            "y": [
+                                "nums"
+                            ]
                         }
                     }
                 ]
@@ -172,23 +176,23 @@ class NullableDataTest {
                         ],
                         [
                             "first",
-                            "1"
+                            1
                         ],
                         [
                             "second",
-                            "2"
+                            2
                         ],
                         [
                             null,
-                            "3"
+                            3
                         ],
                         [
                             "fourth",
-                            "4"
+                            4
                         ],
                         [
                             "fifth",
-                            "5"
+                            5
                         ]
                     ]
                 },
@@ -198,7 +202,9 @@ class NullableDataTest {
                         "name": "days nums",
                         "encode": {
                             "x": "days",
-                            "y": "nums"
+                            "y": [
+                                "nums"
+                            ]
                         }
                     }
                 ]
