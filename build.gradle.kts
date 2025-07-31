@@ -46,8 +46,9 @@ configure(subprojects.filter { it.name in published }) {
     apply(from = project.rootProject.file("gradle/publish.gradle"))
 }
 
-val sonatypeUser: String = System.getenv("kds.sonatype.central.username") ?: ""
-val sonatypePassword: String = System.getenv("kds.sonatype.central.password") ?: ""
+
+val sonatypeUser: String = (project.findProperty("kds.sonatype.central.username") ?: "") as String
+val sonatypePassword: String =(project.findProperty("kds.sonatype.central.password") ?: "") as String
 
 nexusPublishing {
     packageGroup.set(project.group.toString())
