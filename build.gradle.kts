@@ -47,7 +47,7 @@ configure(subprojects.filter { it.name in published }) {
 }
 
 val sonatypeUser: String = System.getenv("kds.sonatype.central.username") ?: ""
-val sonatypePassword: String = System.getenv("kds.sonatype.password.password") ?: ""
+val sonatypePassword: String = System.getenv("kds.sonatype.central.password") ?: ""
 
 nexusPublishing {
     packageGroup.set(project.group.toString())
