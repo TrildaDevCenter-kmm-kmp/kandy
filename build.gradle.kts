@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.net.URI
 import java.time.Duration
 
 plugins {
@@ -45,13 +46,16 @@ configure(subprojects.filter { it.name in published }) {
     apply(from = project.rootProject.file("gradle/publish.gradle"))
 }
 
-val sonatypeUser: String = System.getenv("SONATYPE_USER") ?: ""
-val sonatypePassword: String = System.getenv("SONATYPE_PASSWORD") ?: ""
+val sonatypeUser: String = System.getenv("kds.sonatype.central.username") ?: ""
+val sonatypePassword: String = System.getenv("kds.sonatype.password.password") ?: ""
 
 nexusPublishing {
     packageGroup.set(project.group.toString())
+
     this.repositories {
         sonatype {
+            nexusUrl.set(URI("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(URI("https://central.sonatype.com/repository/maven-snapshots/"))
             username.set(sonatypeUser)
             password.set(sonatypePassword)
             repositoryDescription.set("kandy staging repository, version: $version")
